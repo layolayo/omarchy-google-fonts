@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Original author: Michalis Georgiou <mechmg93@gmail.com>
+# Modified by Andrew http://www.webupd8.org <andrew@webupd8.org>
+# Adapted for Omarchy / Arch Linux
+
+_url="https://github.com/google/fonts/archive/main.zip"
+_gf="google-fonts"
+_tmp_dir="$(mktemp -d)"
+
+# Default to user font directory (~/.local/share/fonts/google-fonts).
+# Pass --system to install into /usr/share/fonts/google-fonts instead.
+if [[ "${1:-}" == "--system" ]]; then
+  _dest="/usr/share/fonts/$_gf"
+  _use_sudo=1
+else
+  _dest="$HOME/.local/share/fonts/$_gf"
+  _use_sudo=0
+fi
+
+cleanup() {
+  rm -rf "$_tmp_dir"
+}
+trap cleanup EXIT
+
+echo "Connecting to GitHub server and downloading Google Fonts archive..."
+if command -v wget >/dev/null 2>&1; then
+  wget -q --show-progress "$_url" -O "$_tmp_dir/$_gf.zip"
+else
+  curl -fSL "$_url" -o "$_tmp_dir/$_gf.zip"
+fi
+
+echo "Extracting all .ttf fonts into $_dest..."
+if (( _use_sudo )); then
+  sudo mkdir -p "$_dest"
+  sudo unzip -oq -j "$_tmp_dir/$_gf.zip" "*.ttf" -d "$_dest"
+  sudo chmod 644 "$_dest"/*.ttf
+  echo "Updating the font cache..."
+  sudo fc-cache -f "$_dest"
+else
+  mkdir -p "$_dest"
+  unzip -oq -j "$_tmp_dir/$_gf.zip" "*.ttf" -d "$_dest"
+  chmod 644 "$_dest"/*.ttf
+  echo "Updating the font cache..."
+  fc-cache -f "$_dest"
+fi
+
+echo "Done."
